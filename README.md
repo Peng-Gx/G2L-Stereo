@@ -3,7 +3,7 @@
 <br/>
 <br/>
 
-## G2L-Stereo: Global to Local Disparity Two-Stage Real-Time Stereo Matching Network
+## G2L-Stereo: Global to Local Two-Stage Real-Time Stereo Matching Network
 
 ## Results on KITTI 2015 and KITTI 2012 leaderboard
 [Leaderboard Link](http://www.cvlibs.net/datasets/kitti/eval_scene_flow.php?benchmark=stereo)
