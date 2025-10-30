@@ -3,7 +3,5 @@
 *.sh
 __pycache__/
 out/
-log/*
-!log/
+log_train/*
 log_test/*
-!log_test/

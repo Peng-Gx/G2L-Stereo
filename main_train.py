@@ -166,7 +166,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=50, help='number of epochs to train')
     parser.add_argument('--lrepochs',default="25,40:3", type=str,  help='the epochs to decay lr: the downscale rate')
 
-    parser.add_argument('--logdir',default='./log', help='the directory to save logs and checkpoints')
+    parser.add_argument('--logdir',default='./log_train', help='the directory to save logs and checkpoints')
     parser.add_argument('--loadckpt', default='./pretrained_model/pretrained_model_sceneflow.ckpt',help='load the weights from a specific checkpoint')
     parser.add_argument('--resume', action='store_true', help='continue training the model')
     parser.add_argument('--seed', type=int, default=42, metavar='S', help='random seed (default: 1)')
