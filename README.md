@@ -10,7 +10,7 @@
 
 | Method | Scene Flow <br> (EPE) | KITTI 2012 <br> (3-all) | KITTI 2015 <br> (D1-all) | Runtime (ms) |
 |:-:|:-:|:-:|:-:|:-:|
-| G2L-Stereo | 0.47 | 1.74 % | 1.88 % | 50 |
+| G2L-Stereo | 0.47 | 1.57 % | 1.82 % | 50 |
 | Fast-ACVNet+ | 0.59 | 1.85 % | 2.01 % | 45 |
 | HITNet | - | 1.89 % |1.98 % | 54 |
 | CoEx | 0.69 | 1.93 % | 2.13 % | 33 |
