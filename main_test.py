@@ -109,7 +109,7 @@ def test_sample(sample):
         imgL_name_list = [x.split('/') for x in sample['left_filename']]
         imgL_name_list = ['_'.join(x) for x in imgL_name_list]
 
-        # #保存色彩真值图
+        #保存色彩真值图
         color_gt_path = os.path.join(args.logdir,'color_disp_gt')
         os.makedirs(color_gt_path, exist_ok=True)
         disp_gt_np = disp_gt.cpu().numpy()
@@ -123,7 +123,7 @@ def test_sample(sample):
             color_img = (disp_to_color(color_img)*255).transpose(0,2,3,1)
             cv2.imwrite(os.path.join(color_gt_path, imgL_name_list[i]), color_img[0])
 
-        # #保存色彩视差图
+        #保存色彩视差图
         color_disp_path = os.path.join(args.logdir,'color_disp_est')
         os.makedirs(color_disp_path, exist_ok=True)
         disp_est_np = disp_est.cpu().numpy()
@@ -136,7 +136,7 @@ def test_sample(sample):
             color_img = (disp_to_color(color_img)*255).transpose(0,2,3,1)
             cv2.imwrite(os.path.join(color_disp_path, imgL_name_list[i]), color_img[0])
 
-        # #保存error
+        #保存error
         error_path = os.path.join(args.logdir,'disp_error')
         os.makedirs(error_path, exist_ok=True)
         errormap = disp_error_image_func.apply(disp_est, disp_gt)
@@ -166,23 +166,12 @@ if __name__ == '__main__':
     parser.add_argument('--test_batch_size', type=int, default=1, help='testing batch size')
     parser.add_argument('--num_workers', type=int, default=8, help='num_workers')
 
-    # parser.add_argument('--lr', type=float, default=0.001, help='base learning rate')
-    # parser.add_argument('--epochs', type=int, default=50, help='number of epochs to train')
-    # parser.add_argument('--lrepochs',default="25,40:3", type=str,  help='the epochs to decay lr: the downscale rate')
-
     parser.add_argument('--logdir',default='./log_test', help='the directory to save logs and checkpoints')
     parser.add_argument('--loadckpt', default='pretrained_model/checkpoint_000039.ckpt',help='load the weights from a specific checkpoint')
-    # parser.add_argument('--resume', action='store_true', help='continue training the model')
     parser.add_argument('--seed', type=int, default=42, metavar='S', help='random seed (default: 1)')
-    # parser.add_argument('--summary_freq', type=int, default=100, help='the frequency of saving summary')
-    # parser.add_argument('--save_freq', type=int, default=1, help='the frequency of saving checkpoint')
+
     parser.add_argument('--cuda', default=True, action='store_true', help='use cuda to train the model')
-
     parser.add_argument('--visual', default=False, action='store_true', help='visualization the map')
-
-    # parser.add_argument('--only_disp4', default=False, action='store_true',  help='only train disp4 weights')
-    # parser.add_argument('--freezen_disp4', default=False, action='store_true',  help='freeze disp4 weights parameters')
-    # parser.add_argument('--whole_with_ckpt', default=False, action='store_true',  help='train the whole model with ckpt')
 
     # parse arguments, set seeds
     args = parser.parse_args()
@@ -199,10 +188,7 @@ if __name__ == '__main__':
     TestImgLoader = DataLoader(test_dataset, args.test_batch_size, shuffle=False, num_workers=args.num_workers, drop_last=False)
 
     # model
-    # model = myCoEx()
     from models.g2l.g2l import G2l
-    # from models.g2l.g2l_refine import G2l
-    # from models.g2l.myCoEx import myCoEx as G2l
     model = G2l()
     model = nn.DataParallel(model)
     if torch.cuda.is_available() and args.cuda:
@@ -220,36 +206,10 @@ if __name__ == '__main__':
             file.write(f'{k}:{v}\n')
         file.write('\n')
 
-    # #保存模型文件
-    # shutil.copy('models/coexnet/myCoEx.py',args.logdir)
-    # shutil.copy('main_mycoex.py',args.logdir)
-
     #加载参数
-    # if (args.freezen_disp4 or args.whole_with_ckpt):
     print("loading model {}".format(args.loadckpt))
     state_dict = torch.load(args.loadckpt, 
                             map_location=torch.device('cuda') if torch.cuda.is_available() and args.cuda else torch.device('cpu'))
-    # model_dict = model.state_dict()
-    # pre_dict = {k: v for k, v in state_dict['model'].items() if k in model_dict and model_dict[k].shape==state_dict['model'][k].shape}
-    # model_dict.update(pre_dict) 
     model.load_state_dict(state_dict['model'])
     
-
-
-    # load parameters
-    # start_epoch = 0
-    # if args.resume:
-    #     # find all checkpoints file and sort according to epoch id
-    #     all_saved_ckpts = [fn for fn in os.listdir(args.logdir) if fn.endswith(".ckpt")]
-    #     all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(x.split('_')[-1].split('.')[0]))
-    #     loadckpt = os.path.join(args.logdir, all_saved_ckpts[-1])
-
-    #     print("loading the lastest model in logdir: {}".format(loadckpt))
-    #     state_dict = torch.load(loadckpt)
-    #     model.load_state_dict(state_dict['model'])
-    #     optimizer.load_state_dict(state_dict['optimizer'])
-    #     start_epoch = state_dict['epoch'] + 1
-
-    # print("start at epoch {}".format(start_epoch))
-
     test()

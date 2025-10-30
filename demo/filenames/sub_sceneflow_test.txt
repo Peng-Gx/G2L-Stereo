@@ -1,0 +1,10 @@
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0006.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0006.png flyingthings3d_final/disparity/TEST/A/0000/left/0006.pfm
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0007.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0007.png flyingthings3d_final/disparity/TEST/A/0000/left/0007.pfm
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0008.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0008.png flyingthings3d_final/disparity/TEST/A/0000/left/0008.pfm
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0009.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0009.png flyingthings3d_final/disparity/TEST/A/0000/left/0009.pfm
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0010.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0010.png flyingthings3d_final/disparity/TEST/A/0000/left/0010.pfm
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0011.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0011.png flyingthings3d_final/disparity/TEST/A/0000/left/0011.pfm
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0012.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0012.png flyingthings3d_final/disparity/TEST/A/0000/left/0012.pfm
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0013.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0013.png flyingthings3d_final/disparity/TEST/A/0000/left/0013.pfm
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0014.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0014.png flyingthings3d_final/disparity/TEST/A/0000/left/0014.pfm
+flyingthings3d_final/frames_finalpass/TEST/A/0000/left/0015.png flyingthings3d_final/frames_finalpass/TEST/A/0000/right/0015.png flyingthings3d_final/disparity/TEST/A/0000/left/0015.pfm

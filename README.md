@@ -104,6 +104,17 @@ python main_test.py\
     --logdir log_test --loadckpt pretrained_model/checkpoint_000039.ckpt
 ```
 
+you can also test on the demo dataset
+```
+python main_test.py\
+    --dataset sceneflow\
+    --datapath demo/dataset/sub_sceneflow\
+    --testlist demo/filenames/sub_sceneflow_test.txt\
+    --test_batch_size 4 --num_workers 8\
+    --logdir log_test --loadckpt pretrained_model/checkpoint_000039.ckpt\
+    --visual
+```
+
 
 
 
