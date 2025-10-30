@@ -11,14 +11,11 @@ import matplotlib.pyplot as plt
 
 
 class KITTIDataset(Dataset):
-    def __init__(self, kitti15_datapath, kitti12_datapath, list_filename, training, crop_w=576, crop_h=288, mode='RGB'):
-        self.crop_w = crop_w
-        self.crop_h = crop_h
+    def __init__(self, kitti15_datapath, kitti12_datapath, list_filename, training):
         self.datapath_15 = kitti15_datapath
         self.datapath_12 = kitti12_datapath
         self.left_filenames, self.right_filenames, self.disp_filenames = self.load_path(list_filename)
         self.training = training
-        self.mode = mode
         if self.training:
             assert self.disp_filenames is not None
 
@@ -63,12 +60,9 @@ class KITTIDataset(Dataset):
         if self.training:
             w, h = left_img.size
             # crop_w, crop_h = 512, 256
-            crop_w, crop_h = self.crop_w, self.crop_h
-            # crop_w, crop_h = 960, 320
-            # crop_w, crop_h = 736, 320
+            crop_w, crop_h = 576, 288
 
             x1 = random.randint(0, w - crop_w)
-            # y1 = random.randint(0, h - crop_h)
             if  random.randint(0, 10) >= int(8):
                 y1 = random.randint(0, h - crop_h)
             else:
@@ -80,18 +74,9 @@ class KITTIDataset(Dataset):
             disparity = disparity[y1:y1 + crop_h, x1:x1 + crop_w]
 
             # to tensor, normalize
-            processed = get_transform(training=self.training)
+            processed = get_transform()
             left_img = processed(left_img)
             right_img = processed(right_img)
-        
-            if self.mode == 'L':
-                left_img = torch.mean(left_img, dim=0, keepdim=True)
-                right_img = torch.mean(right_img, dim=0, keepdim=True)
-                zero_img = torch.zeros_like(left_img)
-                # zero_img = left_img
-                left_img = torch.concat([left_img,zero_img, zero_img], dim=0)
-                # zero_img = right_img
-                right_img = torch.concat([right_img,zero_img, zero_img], dim=0)
 
             return {"left": left_img,
                     "right": right_img,
@@ -101,26 +86,13 @@ class KITTIDataset(Dataset):
             w, h = left_img.size
 
             # normalize
-            processed = get_transform(training=self.training)
-            left_img = processed(left_img)
-            right_img = processed(right_img)
+            processed = get_transform()
+            left_img = processed(left_img).numpy()
+            right_img = processed(right_img).numpy()
 
-            if self.mode == 'L':
-                left_img = torch.mean(left_img, dim=0, keepdim=True)
-                right_img = torch.mean(right_img, dim=0, keepdim=True)
-                zero_img = torch.zeros_like(left_img)
-                # zero_img = left_img
-                left_img = torch.concat([left_img,zero_img, zero_img], dim=0)
-                # zero_img = right_img
-                right_img = torch.concat([right_img,zero_img, zero_img], dim=0)
+            top_pad = (32-h%32)%32
+            right_pad = (32-w%32)%32
 
-            left_img = left_img.numpy()
-            right_img = right_img.numpy()
-
-            # pad to size 1248x384
-            top_pad = 384 - h
-            right_pad = 1248 - w
-            assert top_pad > 0 and right_pad > 0
             # pad images
             left_img = np.lib.pad(left_img, ((0, 0), (top_pad, 0), (0, right_pad)), mode='constant', constant_values=0)
             right_img = np.lib.pad(right_img, ((0, 0), (top_pad, 0), (0, right_pad)), mode='constant',
@@ -142,6 +114,7 @@ class KITTIDataset(Dataset):
             else:
                 return {"left": left_img,
                         "right": right_img,
+                        "disparity": None,
                         "top_pad": top_pad,
                         "right_pad": right_pad,
                         "left_filename": self.left_filenames[index],

@@ -17,13 +17,13 @@
 * Python 3.8
 * Pytorch 2.1.0
 
-### Create a virtual environment and activate it.
+create a virtual environment and activate it.
 
 ```
 conda create -n g2l python=3.8
 conda activate g2l
 ```
-### Dependencies
+install the follow dependencies 
 
 ```
 conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia -y
@@ -39,8 +39,6 @@ pip install timm==0.6.5
 
 ## Data Preparation
 Download [Scene Flow Datasets](https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html), [KITTI 2012](http://www.cvlibs.net/datasets/kitti/eval_stereo_flow.php?benchmark=stereo), [KITTI 2015](http://www.cvlibs.net/datasets/kitti/eval_scene_flow.php?benchmark=stereo)
-
-### Data Directories
 
 In our setup, the dataset is organized as follows
 ```
@@ -95,7 +93,8 @@ python main_train.py\
 ```
 
 
-## Test
+## Test 
+you can test on the whole sceneflow dataset
 ```
 python main_test.py\
     --dataset sceneflow\
@@ -107,7 +106,9 @@ python main_test.py\
 
 
 
-# Acknowledgements
+
+
+## Acknowledgements
 
 Part of the code is adopted from previous works:[CoEx](https://github.com/antabangun/coex), [HITNet](https://github.com/MJITG/PyTorch-HITNet-Hierarchical-Iterative-Tile-Refinement-Network-for-Real-time-Stereo-Matching), [AcfNet](https://github.com/youmi-zym/AcfNet),[ACVNet](https://github.com/gangweiX/ACVNet)
 

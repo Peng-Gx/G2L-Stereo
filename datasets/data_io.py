@@ -3,25 +3,14 @@ import re
 import torchvision.transforms as transforms
 
 
-def get_transform(training=False, mode='RGB'):
-    if mode=='RGB':
-        mean = [0.485, 0.456, 0.406]
-        std = [0.229, 0.224, 0.225]
-    else:
-        mean = [0.5,0.5,0.5]
-        std = [0.5,0.5,0.5]
-        
-    if training:
-        return transforms.Compose([
-            transforms.ColorJitter(brightness=0.2,contrast=0.3),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ])
-    else:
-        return transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ])
+def get_transform():
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+
+    return transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std=std),
+    ])
 
 def get_transform_aug():
     mean = [0.485, 0.456, 0.406]
@@ -35,7 +24,8 @@ def get_transform_aug():
 # read all lines in a file
 def read_all_lines(filename):
     with open(filename) as f:
-        lines = [line.rstrip() for line in f.readlines()]
+        # lines = [line.rstrip() for line in f.readlines()]
+        lines = [line.strip() for line in f.readlines() if line.strip()]
     return lines
 
 

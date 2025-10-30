@@ -4,36 +4,21 @@ from torch.utils.data import Dataset
 from PIL import Image
 import numpy as np
 from datasets.data_io import get_transform, read_all_lines, pfm_imread
-from .sceneflow_listfile import dataloader
-import torch
 
-class SceneFlowDatset(Dataset):
-    # def __init__(self, datapath, list_filename, training):
-    #     self.datapath = datapath
-    #     self.left_filenames, self.right_filenames, self.disp_filenames = self.load_path(list_filename)
-    #     self.training = training
 
-    # def load_path(self, list_filename):
-    #     lines = read_all_lines(list_filename)
-    #     splits = [line.split() for line in lines]
-    #     left_images = [x[0] for x in splits]
-    #     right_images = [x[1] for x in splits]
-    #     disp_images = [x[2] for x in splits]
-    #     return left_images, right_images, disp_images
+class SceneFlowDataset(Dataset):
+    def __init__(self, datapath, list_filename, training):
+        self.datapath = datapath
+        self.left_filenames, self.right_filenames, self.disp_filenames = self.load_path(list_filename)
+        self.training = training
 
-    def __init__(self,scenflow_datapath,training=False,part='all',mode='RGB'):
-        filelists=dataloader(scenflow_datapath,part)
-        self.training=training
-        self.mode = mode
-        if self.training:
-            self.left_filenames=filelists[0]
-            self.right_filenames=filelists[1]
-            self.disp_filenames=filelists[2]
-        else:
-            self.left_filenames=filelists[3]
-            self.right_filenames=filelists[4]
-            self.disp_filenames=filelists[5]
-        
+    def load_path(self, list_filename):
+        lines = read_all_lines(list_filename)
+        splits = [line.split() for line in lines]
+        left_images = [x[0] for x in splits]
+        right_images = [x[1] for x in splits]
+        disp_images = [x[2] for x in splits]
+        return left_images, right_images, disp_images
 
     def load_image(self, filename):
         return Image.open(filename).convert('RGB')
@@ -47,9 +32,9 @@ class SceneFlowDatset(Dataset):
         return len(self.left_filenames)
 
     def __getitem__(self, index):
-        left_img = self.load_image(self.left_filenames[index])
-        right_img = self.load_image(self.right_filenames[index])
-        disparity = self.load_disp(self.disp_filenames[index])
+        left_img = self.load_image(os.path.join(self.datapath, self.left_filenames[index]))
+        right_img = self.load_image(os.path.join(self.datapath, self.right_filenames[index]))
+        disparity = self.load_disp(os.path.join(self.datapath, self.disp_filenames[index]))
 
         if self.training:
             w, h = left_img.size
@@ -65,47 +50,38 @@ class SceneFlowDatset(Dataset):
             disparity = disparity[y1:y1 + crop_h, x1:x1 + crop_w]
 
             # to tensor, normalize
-            processed = get_transform(mode=self.mode)
+            processed = get_transform()
             left_img = processed(left_img)
             right_img = processed(right_img)
-
-            if self.mode == 'L':
-                left_img = torch.mean(left_img, dim=0, keepdim=True)
-                right_img = torch.mean(right_img, dim=0, keepdim=True)
-                zero_img = torch.zeros_like(left_img)
-                # zero_img = left_img
-                left_img = torch.concat([left_img,zero_img, zero_img], dim=0)
-                # zero_img = right_img
-                right_img = torch.concat([right_img,zero_img, zero_img], dim=0)
 
             return {"left": left_img,
                     "right": right_img,
                     "disparity": disparity}
         else:
             w, h = left_img.size
-            crop_w, crop_h = 960, 512
+            
 
-            left_img = left_img.crop((w - crop_w, h - crop_h, w, h))
-            right_img = right_img.crop((w - crop_w, h - crop_h, w, h))
-            disparity = disparity[h - crop_h:h, w - crop_w: w]
 
-            # to tensor, normalize
-            processed = get_transform(mode=self.mode)
-            left_img = processed(left_img)
-            right_img = processed(right_img)
+            # crop_w, crop_h = 960, 512
+            # left_img = left_img.crop((w - crop_w, h - crop_h, w, h))
+            # right_img = right_img.crop((w - crop_w, h - crop_h, w, h))
+            # disparity = disparity[h - crop_h:h, w - crop_w: w]
 
-            if self.mode == 'L':
-                left_img = torch.mean(left_img, dim=0, keepdim=True)
-                right_img = torch.mean(right_img, dim=0, keepdim=True)
-                zero_img = torch.zeros_like(left_img)
-                # zero_img = left_img
-                left_img = torch.concat([left_img,zero_img, zero_img], dim=0)
-                # zero_img = right_img
-                right_img = torch.concat([right_img,zero_img, zero_img], dim=0)
+            processed = get_transform()
+            left_img = processed(left_img).numpy()
+            right_img = processed(right_img).numpy()
+
+            top_pad = (32-h%32)%32
+            right_pad = (32-w%32)%32
+
+            left_img = np.lib.pad(left_img, ((0,0),(top_pad,0),(0,right_pad)), mode='constant', constant_values=0)
+            right_img = np.lib.pad(right_img, ((0,0),(top_pad,0),(0,right_pad)), mode='constant', constant_values=0)
+            assert len(disparity.shape)==2
+            disparity = np.lib.pad(disparity, ((top_pad, 0), (0, right_pad)), mode='constant', constant_values=0)
 
             return {"left": left_img,
                     "right": right_img,
                     "disparity": disparity,
-                    "top_pad": 0,
-                    "right_pad": 0,
+                    "top_pad": top_pad,
+                    "right_pad": right_pad,
                     "left_filename": self.left_filenames[index]}
