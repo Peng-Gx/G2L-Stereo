@@ -4,6 +4,6 @@
 __pycache__/
 out/
 log/*
-!log
+!log/
 log_test/*
-!log_test
+!log_test/
