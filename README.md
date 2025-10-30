@@ -55,6 +55,31 @@ SceneFlow
 
 ```
 
+
+## Test 
+you can test on the whole sceneflow dataset
+```
+python main_test.py\
+    --dataset sceneflow\
+    --datapath {{your sceneflow datapath}}\
+    --testlist ./filenames/sceneflow_test_2024-12-08.txt\
+    --test_batch_size 4 --num_workers 8\
+    --logdir log_test --loadckpt pretrained_model/checkpoint_000039.ckpt
+```
+
+you can also test on the demo dataset
+```
+python main_test.py\
+    --dataset sceneflow\
+    --datapath demo/dataset/sub_sceneflow\
+    --testlist demo/filenames/sub_sceneflow_test.txt\
+    --test_batch_size 4 --num_workers 8\
+    --logdir log_test --loadckpt pretrained_model/checkpoint_000039.ckpt\
+    --visual
+```
+
+
+
 ## Train
 Use the following command to train G2L-Stereo on Scene Flow
 
@@ -90,29 +115,6 @@ python main_train.py\
     --epochs 40 --lrepochs 20,30,35:3\
     --batch_size 8 --test_batch_size 4 --num_workers 8  --lr 0.001 --save_freq 1\
     --whole_with_ckpt --loadckpt {{xxxx/checkpoint_000019.ckpt}}
-```
-
-
-## Test 
-you can test on the whole sceneflow dataset
-```
-python main_test.py\
-    --dataset sceneflow\
-    --datapath {{your sceneflow datapath}}\
-    --testlist ./filenames/sceneflow_test_2024-12-08.txt\
-    --test_batch_size 4 --num_workers 8\
-    --logdir log_test --loadckpt pretrained_model/checkpoint_000039.ckpt
-```
-
-you can also test on the demo dataset
-```
-python main_test.py\
-    --dataset sceneflow\
-    --datapath demo/dataset/sub_sceneflow\
-    --testlist demo/filenames/sub_sceneflow_test.txt\
-    --test_batch_size 4 --num_workers 8\
-    --logdir log_test --loadckpt pretrained_model/checkpoint_000039.ckpt\
-    --visual
 ```
 
 
