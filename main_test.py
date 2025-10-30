@@ -1,3 +1,4 @@
+# from __future__ import print_function, division
 import argparse
 import os
 import torch
@@ -13,18 +14,22 @@ import numpy as np
 import time
 from tensorboardX import SummaryWriter
 from datasets import __datasets__
+# from models import __models__, model_loss_train_attn_only, model_loss_train_freeze_attn, model_loss_train, model_loss_test
 from utils import *
 from torch.utils.data import DataLoader
 import gc
 # from apex import amp
 import cv2
-from datasets import sceneflow_listfile
+# from datasets import sceneflow_listfile
 
-from models.G2L import G2L
+# from models.coexnet.myCoEx import myCoEx
+# from models.coexnet.CoEx import CoEx
 from tqdm import tqdm
 
-from PIL import Image
-import matplotlib.pyplot as plt
+import torch
+import torch.nn.functional as F
+import shutil
+
 
 def disp_to_color(img):
     b,c,h,w = img.shape
@@ -51,38 +56,31 @@ def disp_to_color(img):
     color_img = color_left*img_right+color_right*img_left
     return color_img
 
-
-def val():
+def test():
+    # testing
     avg_test_scalars = AverageMeterDict()
-    with tqdm(total=len(TestImgLoader),desc="Test") as pbar:
+    with tqdm(total=len(TestImgLoader),desc="Testing") as pbar:
         for batch_idx, sample in enumerate(TestImgLoader):    
             start_time = time.time()
-            loss, scalar_outputs = val_sample(sample)
-
+            loss, scalar_outputs = test_sample(sample)
             avg_test_scalars.update(scalar_outputs)
             del scalar_outputs 
             pbar.update(1)
-            pbar.set_postfix({'time':'{:.3f}'.format(time.time() - start_time)})
-
+            pbar.set_postfix({'test loss':'{:.3f}'.format(loss),'time':'{:.3f}'.format(time.time() - start_time)})
     avg_test_scalars = avg_test_scalars.mean()
-    with open(os.path.join(args.logdir,'result.txt'),'a') as file:
+
+    save_scalars(logger, 'fulltest', avg_test_scalars, 0)
+    with open(os.path.join(args.logdir,'test_result.txt'),'a') as file:
+        file.write(f'epoch_idx:0\n')
         for k,v in avg_test_scalars.items():
             file.write(f'{k}:{v}\n')
+        file.write('\n')
     print("avg_test_scalars", avg_test_scalars)
-    gc.collect()
-
-def writeFunctionImg(x=None, y=None, name='sample.png', title="None"):
-    plt.figure(figsize=(8, 4))
-    plt.plot(x, y,color='g')
-    # plt.xlabel('x')
-    # plt.ylabel('f(x)')
-    plt.title(title)
-    plt.grid(True)
-    plt.savefig(name)
+    gc.collect() 
 
 # test one sample
 @make_nograd_func
-def val_sample(sample, compute_metrics=True):
+def test_sample(sample):
     model.eval()
     imgL, imgR, disp_gt = sample['left'], sample['right'], sample['disparity']
     if torch.cuda.is_available() and args.cuda:
@@ -90,72 +88,9 @@ def val_sample(sample, compute_metrics=True):
         imgR = imgR.cuda()
         disp_gt = disp_gt.cuda()
 
-    h, w = imgL.shape[-2:]
-    results = model(imgL, imgR)
-    disp_est = results[args.stage]
-    if disp_est.shape[-1] != w or disp_est.shape[-2] != h:
-        disp_est = F.interpolate(disp_est.unsqueeze(1),size=(h, w),mode='bilinear').squeeze(1)
-
-    if args.dataset=='kitti':
-        imgL_name_list = [x.split('/')[-1] for x in sample['left_filename']]
-    else:
-        imgL_name_list = [x.split('/') for x in sample['left_filename']]
-        imgL_name_list = [x[-4]+'_'+x[-3]+'_'+x[-2]+'_'+x[-1] for x in imgL_name_list]
-
-    # #保存分布
-    # distribution_path = os.path.join(args.logdir,'distribution')
-    # os.makedirs(distribution_path, exist_ok=True)
-    # cost = results[-1][-2].squeeze(1)
-    # conf = results[-1][-1]
-    # for i in range(cost.shape[0]):
-    #     x = torch.range(0,cost.shape[1]-1,1).cpu().numpy()
-    #     y = cost[i,:,cost.shape[2]//2,cost.shape[3]//2].cpu().numpy()
-    #     writeFunctionImg(x,y,os.path.join(distribution_path,imgL_name_list[i]),title="conf:{}".format(conf[i,0,cost.shape[2]//2,cost.shape[3]//2]))
-
-    # #保存置信度
-    # confidence_path = os.path.join(args.logdir,'confidence')
-    # os.makedirs(confidence_path, exist_ok=True)
-    # conf = results[-1][-1]
-    # if conf.shape[-1] != w or conf.shape[-2] != h:
-    #     conf = F.interpolate(conf,size=(h, w),mode='nearest').squeeze(1)
-    # conf = conf.cpu().numpy()*255
-    # for i in range(conf.shape[0]):
-    #     img = 255-conf[i]
-    #     cv2.imwrite(os.path.join(confidence_path, imgL_name_list[i]), img)
-
-    # #保存error
-    # error_path = os.path.join(args.logdir,'error')
-    # os.makedirs(error_path, exist_ok=True)
-    # errormap = disp_error_image_func.apply(disp_est, disp_gt)
-    # errormap = errormap.cpu().numpy().transpose(0,2,3,1)*255
-    # for i in range(errormap.shape[0]):
-    #     img = errormap[i]
-    #     cv2.imwrite(os.path.join(error_path, imgL_name_list[i]), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
-
-    # #保存色彩视差图
-    # color_disp_path = os.path.join(args.logdir,'color_disp_0')
-    # os.makedirs(color_disp_path, exist_ok=True)
-    # disp_est_np = disp_est.cpu().numpy()
-    # for i in range(disp_est_np.shape[0]):
-    #     img = disp_est_np[i]
-    #     color_img = img.reshape(1,1,img.shape[-2],img.shape[-1]).astype(np.float64)/args.maxdisp
-    #     color_img = np.clip(color_img, 0, 1)
-    #     color_img = (disp_to_color(color_img)*255).transpose(0,2,3,1)
-    #     cv2.imwrite(os.path.join(color_disp_path, 'color_'+imgL_name_list[i]), color_img[0])
-
-    # #保存色彩真值图
-    # color_gt_path = os.path.join(args.logdir,'color_gt_0')
-    # os.makedirs(color_gt_path, exist_ok=True)
-    # disp_gt_np = disp_gt.cpu().numpy()
-    # for i in range(disp_gt_np.shape[0]):
-    #     img = disp_gt_np[i]
-    #     color_img = img.reshape(1,1,img.shape[-2],img.shape[-1]).astype(np.float64)/args.maxdisp
-    #     color_img = np.clip(color_img, 0, 1)
-    #     color_img = (disp_to_color(color_img)*255).transpose(0,2,3,1)
-    #     cv2.imwrite(os.path.join(color_gt_path, 'color_'+imgL_name_list[i]), color_img[0])
-
-    #计算保存其他指标
     mask = (disp_gt < args.maxdisp) & (disp_gt > 0)
+    disp_est = model(imgL, imgR)[0]
+
     if mask.float().mean()<0.01:
         loss=torch.tensor(0, dtype=torch.float32, device=disp_gt.device)
     else:
@@ -168,98 +103,86 @@ def val_sample(sample, compute_metrics=True):
     scalar_outputs["Thres2"] = [Thres_metric(disp_est, disp_gt, mask, 2.0)]
     scalar_outputs["Thres3"] = [Thres_metric(disp_est, disp_gt, mask, 3.0)]
 
+    if args.visual:
+        top_pad, right_pad = sample['top_pad'], sample['right_pad']
+
+        imgL_name_list = [x.split('/') for x in sample['left_filename']]
+        imgL_name_list = ['_'.join(x) for x in imgL_name_list]
+
+        # #保存色彩真值图
+        color_gt_path = os.path.join(args.logdir,'color_disp_gt')
+        os.makedirs(color_gt_path, exist_ok=True)
+        disp_gt_np = disp_gt.cpu().numpy()
+        for i in range(disp_gt_np.shape[0]):
+            disp_gt_np[i] = np.where(np.isinf(disp_gt_np[i]), 0, disp_gt_np[i])
+            img = disp_gt_np[i]
+            img = img[top_pad[i]:,:img.shape[-1]-right_pad[i]]
+            # color_img = img.reshape(1,1,img.shape[-2],img.shape[-1]).astype(np.float64)/args.maxdisp
+            color_img = img.reshape(1,1,img.shape[-2],img.shape[-1]).astype(np.float64)/np.amax(img)
+            color_img = np.clip(color_img, 0, 1)
+            color_img = (disp_to_color(color_img)*255).transpose(0,2,3,1)
+            cv2.imwrite(os.path.join(color_gt_path, imgL_name_list[i]), color_img[0])
+
+        # #保存色彩视差图
+        color_disp_path = os.path.join(args.logdir,'color_disp_est')
+        os.makedirs(color_disp_path, exist_ok=True)
+        disp_est_np = disp_est.cpu().numpy()
+        for i in range(disp_est_np.shape[0]):
+            img = disp_est_np[i]
+            img = img[top_pad[i]:,:img.shape[-1]-right_pad[i]]
+            # color_img = img.reshape(1,1,img.shape[-2],img.shape[-1]).astype(np.float64)/args.maxdisp
+            color_img = img.reshape(1,1,img.shape[-2],img.shape[-1]).astype(np.float64)/np.amax(disp_gt_np[i])
+            color_img = np.clip(color_img, 0, 1)
+            color_img = (disp_to_color(color_img)*255).transpose(0,2,3,1)
+            cv2.imwrite(os.path.join(color_disp_path, imgL_name_list[i]), color_img[0])
+
+        # #保存error
+        error_path = os.path.join(args.logdir,'disp_error')
+        os.makedirs(error_path, exist_ok=True)
+        errormap = disp_error_image_func.apply(disp_est, disp_gt)
+        for i in range(errormap.shape[0]):
+            img = errormap[i]
+            img = img[:,top_pad[i]:,:img.shape[-1]-right_pad[i]]
+            img = img.cpu().numpy().transpose(1,2,0)*255
+            cv2.imwrite(os.path.join(error_path, imgL_name_list[i]), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+
+
     return tensor2float(loss), tensor2float(scalar_outputs)
 
 
-def test():
-    with tqdm(total=len(TestImgLoader),desc="Test") as pbar:
-        for batch_idx, sample in enumerate(TestImgLoader):    
-            start_time = time.time()
-            test_sample(sample)
-
-            pbar.update(1)
-            pbar.set_postfix({'time':'{:.3f}'.format(time.time() - start_time)})
-    gc.collect()
-
-
-# test one sample
-@make_nograd_func
-def test_sample(sample, compute_metrics=True):
-    model.eval()
-    imgL, imgR= sample['left'], sample['right']
-    if torch.cuda.is_available() and args.cuda:
-        imgL = imgL.cuda()
-        imgR = imgR.cuda()
-
-    h, w = imgL.shape[-2:]
-    results = model(imgL, imgR)
-    disp_est = results[args.stage]#b,h,w
-    if disp_est.shape[-1] != w or disp_est.shape[-2] != h:
-        disp_est = F.interpolate(disp_est.unsqueeze(1),size=(h, w),mode='nearest').squeeze(1)
-    disp_est_np = disp_est.cpu().numpy()#b,h,w
-    
-    if args.dataset=='kitti' :
-        assert disp_est_np.shape[0] == 1
-        disp_est_np = disp_est_np[:,sample['top_pad'][0]:,:]
-        disp_est_np = disp_est_np[:,:,0:disp_est_np.shape[2]-sample['right_pad'][0]]
-
-    if args.dataset=='kitti':
-        imgL_name_list = [x.split('/')[-1] for x in sample['left_filename']]
-    else:
-        imgL_name_list = [x.split('/') for x in sample['left_filename']]
-        imgL_name_list = [x[-4]+'_'+x[-3]+'_'+x[-2]+'_'+x[-1] for x in imgL_name_list]
-
-
-    # save confidence map
-    confidence_path = os.path.join(args.logdir,'confidence')
-    os.makedirs(confidence_path, exist_ok=True)
-    conf = results[-1][-1]
-    if conf.shape[-1] != w or conf.shape[-2] != h:
-        conf = F.interpolate(conf,size=(h, w),mode='nearest').squeeze(1)
-    # 转成numpy方便cv操作
-    conf = conf.cpu().numpy()*255
-    for i in range(conf.shape[0]):
-        img = 255-conf[i]
-        cv2.imwrite(os.path.join(confidence_path, imgL_name_list[i]), img)
-
-    # save color disparity and gray disparity
-    color_disp_path = os.path.join(args.logdir,'color_disp_0')
-    os.makedirs(color_disp_path, exist_ok=True)
-    disp_path = os.path.join(args.logdir,'disp_0')
-    os.makedirs(disp_path, exist_ok=True)
-    for i in range(disp_est_np.shape[0]):
-        img = disp_est_np[i]
-        cv2.imwrite(os.path.join(disp_path, imgL_name_list[i]), np.clip(img*256, 0, 65535).astype(np.uint16))
-
-        #kitti测试集每一张图片有单独的scale，这里使用96或者最大值
-        # color_img = img.reshape(1,1,img.shape[-2],img.shape[-1]).astype(np.float64)/np.amax(img)
-        color_img = img.reshape(1,1,img.shape[-2],img.shape[-1]).astype(np.float64)/96
-        color_img = np.clip(color_img, 0, 1)
-        color_img = (disp_to_color(color_img)*255).transpose(0,2,3,1)
-        cv2.imwrite(os.path.join(color_disp_path, 'color_'+imgL_name_list[i]), color_img[0])
-
 if __name__ == '__main__':
     cudnn.benchmark = True
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
 
-    parser = argparse.ArgumentParser(description='Neighborhood-Similarity Guided Disparity Refinement in Lightweight Stereo Matching')
+
+    parser = argparse.ArgumentParser(description='Stereo Matching')
     parser.add_argument('--maxdisp', type=int, default=192, help='maximum disparity')
-    parser.add_argument('--dataset', default='kitti', help='dataset name', choices=__datasets__.keys())
-    parser.add_argument('--mode', default='RGB', help='train data color, RGB or L')
 
+    parser.add_argument('--dataset', default='sceneflow', help='dataset name', choices=__datasets__.keys())
     parser.add_argument('--datapath', default="../sub_sceneflow", help='data path')
-
-    parser.add_argument('--kitti15_datapath', default="../SceneFlow/kitti15", help='data path')
-    parser.add_argument('--kitti12_datapath', default="../SceneFlow/kitti12", help='data path')
-    parser.add_argument('--testlist',default='filenames/kitti12_test.txt', help='testing list')
-
-    parser.add_argument('--test_batch_size', type=int, default=1, help='testing batch size')
-    parser.add_argument('--logdir',default='./testlog', help='the directory to save logs and checkpoints')
-    parser.add_argument('--loadckpt', default='pretrained_model/G2L_sceneflow.ckpt',help='load the weights from a specific checkpoint')
-    parser.add_argument('--seed', type=int, default=42, metavar='S', help='random seed (default: 1)')
-    parser.add_argument('--cuda', default=True, type=str, help='use cuda to train the model')
+    parser.add_argument('--datapath_another', default="../sub_sceneflow", help='data path')
+    parser.add_argument('--testlist',default='filenames/sub_sceneflow_test_2024-12-08.txt', help='testing list')
     
-    parser.add_argument('--stage', type=int, default=0, help='which stage disparity')
+    parser.add_argument('--test_batch_size', type=int, default=1, help='testing batch size')
+    parser.add_argument('--num_workers', type=int, default=8, help='num_workers')
+
+    # parser.add_argument('--lr', type=float, default=0.001, help='base learning rate')
+    # parser.add_argument('--epochs', type=int, default=50, help='number of epochs to train')
+    # parser.add_argument('--lrepochs',default="25,40:3", type=str,  help='the epochs to decay lr: the downscale rate')
+
+    parser.add_argument('--logdir',default='./log_test', help='the directory to save logs and checkpoints')
+    parser.add_argument('--loadckpt', default='pretrained_model/checkpoint_000039.ckpt',help='load the weights from a specific checkpoint')
+    # parser.add_argument('--resume', action='store_true', help='continue training the model')
+    parser.add_argument('--seed', type=int, default=42, metavar='S', help='random seed (default: 1)')
+    # parser.add_argument('--summary_freq', type=int, default=100, help='the frequency of saving summary')
+    # parser.add_argument('--save_freq', type=int, default=1, help='the frequency of saving checkpoint')
+    parser.add_argument('--cuda', default=True, action='store_true', help='use cuda to train the model')
+
+    parser.add_argument('--visual', default=False, action='store_true', help='visualization the map')
+
+    # parser.add_argument('--only_disp4', default=False, action='store_true',  help='only train disp4 weights')
+    # parser.add_argument('--freezen_disp4', default=False, action='store_true',  help='freeze disp4 weights parameters')
+    # parser.add_argument('--whole_with_ckpt', default=False, action='store_true',  help='train the whole model with ckpt')
 
     # parse arguments, set seeds
     args = parser.parse_args()
@@ -267,44 +190,66 @@ if __name__ == '__main__':
     if torch.cuda.is_available() and args.cuda:
         torch.cuda.manual_seed(args.seed)
 
-    os.makedirs(args.logdir, exist_ok=True)
-
-    # create summary logger
-    print("creating new summary file")
-    current_time=time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
-    args.logdir=os.path.join(args.logdir,current_time)
-    logger = SummaryWriter(args.logdir)
-
-    # save config
-    with open(os.path.join(args.logdir,'config.txt'),'w') as file:
-        for k,v in vars(args).items():
-            file.write(f'{k}:{v}\n')
-
     # dataset, dataloader
     StereoDataset = __datasets__[args.dataset]
-    if args.dataset=='kitti':
-        test_dataset = StereoDataset(args.kitti15_datapath, args.kitti12_datapath, args.testlist, False, mode=args.mode)
+    if args.dataset == 'kitti':
+        test_dataset = StereoDataset(args.datapath, args.datapath_another, args.testlist, False)
     else:
-        test_dataset = StereoDataset(args.datapath, False, mode=args.mode)
-    TestImgLoader = DataLoader(test_dataset, args.test_batch_size, shuffle=False, num_workers=4, drop_last=False)
+        test_dataset = StereoDataset(args.datapath, args.testlist, False)
+    TestImgLoader = DataLoader(test_dataset, args.test_batch_size, shuffle=False, num_workers=args.num_workers, drop_last=False)
 
     # model
-    model = G2L()
+    # model = myCoEx()
+    from models.g2l.g2l import G2l
+    # from models.g2l.g2l_refine import G2l
+    # from models.g2l.myCoEx import myCoEx as G2l
+    model = G2l()
     model = nn.DataParallel(model)
     if torch.cuda.is_available() and args.cuda:
         model.cuda()
 
-    # load weight
-    if args.loadckpt:
-        # load the checkpoint file specified by args.loadckpt
-        print("loading model {}".format(args.loadckpt))
-        state_dict = torch.load(args.loadckpt,map_location=torch.device('cpu') if not torch.cuda.is_available() else torch.device('cuda'))
-        model_dict = model.state_dict()
-        pre_dict = {k: v for k, v in state_dict['model'].items() if k in model_dict}
-        model_dict.update(pre_dict) 
-        model.load_state_dict(model_dict)
-        
-    if args.dataset == 'kitti':
-        test()
-    else:
-        val()
+    # create summary logger
+    os.makedirs(args.logdir, exist_ok=True)
+    args.logdir=os.path.join(args.logdir,time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime()))
+    logger = SummaryWriter(args.logdir)
+
+
+    #保存命令行参数
+    with open(os.path.join(args.logdir,'config.txt'),'a') as file:
+        for k,v in vars(args).items():
+            file.write(f'{k}:{v}\n')
+        file.write('\n')
+
+    # #保存模型文件
+    # shutil.copy('models/coexnet/myCoEx.py',args.logdir)
+    # shutil.copy('main_mycoex.py',args.logdir)
+
+    #加载参数
+    # if (args.freezen_disp4 or args.whole_with_ckpt):
+    print("loading model {}".format(args.loadckpt))
+    state_dict = torch.load(args.loadckpt, 
+                            map_location=torch.device('cuda') if torch.cuda.is_available() and args.cuda else torch.device('cpu'))
+    # model_dict = model.state_dict()
+    # pre_dict = {k: v for k, v in state_dict['model'].items() if k in model_dict and model_dict[k].shape==state_dict['model'][k].shape}
+    # model_dict.update(pre_dict) 
+    model.load_state_dict(state_dict['model'])
+    
+
+
+    # load parameters
+    # start_epoch = 0
+    # if args.resume:
+    #     # find all checkpoints file and sort according to epoch id
+    #     all_saved_ckpts = [fn for fn in os.listdir(args.logdir) if fn.endswith(".ckpt")]
+    #     all_saved_ckpts = sorted(all_saved_ckpts, key=lambda x: int(x.split('_')[-1].split('.')[0]))
+    #     loadckpt = os.path.join(args.logdir, all_saved_ckpts[-1])
+
+    #     print("loading the lastest model in logdir: {}".format(loadckpt))
+    #     state_dict = torch.load(loadckpt)
+    #     model.load_state_dict(state_dict['model'])
+    #     optimizer.load_state_dict(state_dict['optimizer'])
+    #     start_epoch = state_dict['epoch'] + 1
+
+    # print("start at epoch {}".format(start_epoch))
+
+    test()

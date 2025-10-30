@@ -1,0 +1,13 @@
+name: 'PSMNet'
+max_disparity: 192
+backbone: 
+  type: 'mobilenetv2_100'
+  from_scratch: False
+  cfg_path: './configs/backbone.yaml'
+
+corr_volume: False
+gce: False
+multiple_gce: False
+
+regression:
+  top_k: 192

@@ -1,0 +1,23 @@
+name: 'CoEx'
+max_disparity: 192
+backbone: 
+  type: 'mobilenetv2_100'
+  from_scratch: False
+  cfg_path: './configs/backbone.yaml'
+
+corr_volume: True
+gce: True
+
+matching_head: 1
+matching_weighted: False
+
+spixel: 
+  branch_channels: [32,48]
+
+aggregation:
+  disp_strides: 2
+  channels: [16,32,48]
+  blocks_num: [2,2,2]
+
+regression:
+  top_k: 2
